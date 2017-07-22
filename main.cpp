@@ -169,29 +169,37 @@ int main()
 
     // Test contents
     {
-        unsigned char all8BitValues[256];
+        unsigned char all8bitpixels[256 * 4];
         for (int i = 0; i < 256; i++)
         {
-            all8BitValues[i] = i;
+            all8bitpixels[i * 4 + 0] = i;
+            all8bitpixels[i * 4 + 1] = i;
+            all8bitpixels[i * 4 + 2] = i;
+            all8bitpixels[i * 4 + 3] = i;
         }
 
         // Initialize the texture with raw 8-bit data in it.
         GLuint texture;
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_1D, texture);
-        glTexStorage1D(GL_TEXTURE_1D, 1, GL_R8UI, 256);
-        glTexSubImage1D(GL_TEXTURE_1D, 0, 0, 256, GL_RED_INTEGER, GL_UNSIGNED_BYTE, all8BitValues);
+        glTexStorage1D(GL_TEXTURE_1D, 1, GL_RGBA8UI, 256);
+        glTexSubImage1D(GL_TEXTURE_1D, 0, 0, 256, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, all8bitpixels);
         glBindTexture(GL_TEXTURE_1D, 0);
 
         // Create a UNORM view of the 8-bit data
         GLuint unormView;
         glGenTextures(1, &unormView);
-        glTextureView(unormView, GL_TEXTURE_1D, texture, GL_R8, 0, 1, 0, 1);
+        glTextureView(unormView, GL_TEXTURE_1D, texture, GL_RGBA8, 0, 1, 0, 1);
 
         // Create a SNORM view of the 8-bit data
         GLuint snormView;
         glGenTextures(1, &snormView);
-        glTextureView(snormView, GL_TEXTURE_1D, texture, GL_R8_SNORM, 0, 1, 0, 1);
+        glTextureView(snormView, GL_TEXTURE_1D, texture, GL_RGBA8_SNORM, 0, 1, 0, 1);
+
+        // Create a SRGB view of the 8-bit data
+        GLuint srgbView;
+        glGenTextures(1, &srgbView);
+        glTextureView(srgbView, GL_TEXTURE_1D, texture, GL_SRGB8_ALPHA8, 0, 1, 0, 1);
 
         // Create a buffer to store the results of the test
         GLuint resultsBuf;
@@ -234,8 +242,8 @@ void main()
         }
 
         // Run the test once for each view
-        GLuint views[] = { unormView, snormView };
-        const char* viewNames[] = { "GL_R8 (= GL_R8_UNORM)", "GL_R8_SNORM" };
+        GLuint views[] = { unormView, snormView, srgbView };
+        const char* viewNames[] = { "GL_RGBA8 (= GL_RGBA8_UNORM)", "GL_RGBA8_SNORM", "GL_SRGB8_ALPHA8" };
 
         for (int viewIdx = 0; viewIdx < sizeof(views) / sizeof(*views); viewIdx++)
         {
@@ -275,7 +283,7 @@ void main()
                 {
                     int i = row + col * nRows;
 
-                    if (view == unormView || (view == snormView && i <= 127))
+                    if (view == unormView || view == srgbView || (view == snormView && i <= 127))
                     {
                         printf("%3d -> %2.3f | ", i, results[i]);
                     }
