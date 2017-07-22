@@ -16,9 +16,11 @@ Each entry in the result shows the original 8-bit value and the float that it wa
 
 In the SNORM table, the signed value is also shown for 8-bit values that represent negative numbers in twos complement.
 
-Results were produced on an Intel HD 540 GPU running Windows 10.
-
 ```
+GL_VENDOR: Intel
+GL_RENDERER: Intel(R) Iris(TM) Graphics 540
+GL_VERSION: 4.4.0 - Build 21.20.16.4678
+
 GL_R8 (= GL_R8_UNORM):
 |   0 -> 0.000 |  64 -> 0.251 | 128 -> 0.502 | 192 -> 0.753 |
 |   1 -> 0.004 |  65 -> 0.255 | 129 -> 0.506 | 193 -> 0.757 |
