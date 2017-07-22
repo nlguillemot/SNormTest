@@ -5,6 +5,7 @@
 #include "wglext.h"
 
 #include <cstdlib>
+#include <cassert>
 
 #pragma comment(lib, "opengl32.lib")
 
@@ -128,6 +129,7 @@ int main()
     };
 
     // Grab OpenGL functions
+    PFNGLGETSTRINGPROC glGetString = (PFNGLGETSTRINGPROC)GetProcGL("glGetString");
     PFNGLENABLEPROC glEnable = (PFNGLENABLEPROC)GetProcGL("glEnable");
 
     PFNGLGENBUFFERSPROC glGenBuffers = (PFNGLGENBUFFERSPROC)GetProcGL("glGenBuffers");
@@ -160,6 +162,11 @@ int main()
     glDebugMessageCallback(DebugCallbackGL, 0);
 #endif
 
+    printf("GL_VENDOR: %s\n", glGetString(GL_VENDOR));
+    printf("GL_RENDERER: %s\n", glGetString(GL_RENDERER));
+    printf("GL_VERSION: %s\n", glGetString(GL_VERSION));
+    printf("\n");
+
     // Test contents
     {
         unsigned char all8BitValues[256];
@@ -168,6 +175,7 @@ int main()
             all8BitValues[i] = i;
         }
 
+        // Initialize the texture with raw 8-bit data in it.
         GLuint texture;
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_1D, texture);
@@ -175,21 +183,24 @@ int main()
         glTexSubImage1D(GL_TEXTURE_1D, 0, 0, 256, GL_RED_INTEGER, GL_UNSIGNED_BYTE, all8BitValues);
         glBindTexture(GL_TEXTURE_1D, 0);
 
+        // Create a UNORM view of the 8-bit data
         GLuint unormView;
         glGenTextures(1, &unormView);
         glTextureView(unormView, GL_TEXTURE_1D, texture, GL_R8, 0, 1, 0, 1);
 
+        // Create a SNORM view of the 8-bit data
         GLuint snormView;
         glGenTextures(1, &snormView);
         glTextureView(snormView, GL_TEXTURE_1D, texture, GL_R8_SNORM, 0, 1, 0, 1);
 
-        // buffer to store the results of the test
+        // Create a buffer to store the results of the test
         GLuint resultsBuf;
         glGenBuffers(1, &resultsBuf);
         glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
         glBufferStorage(GL_ARRAY_BUFFER, sizeof(GLfloat) * 256, NULL, GL_MAP_READ_BIT);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+        // Compute shader that just converts every 8-bit value into a float and stores the result in a buffer.
         const char* srcs[] = {
 R"GLSL(
 #version 440 core
@@ -222,29 +233,37 @@ void main()
             fprintf(stderr, "%s", infolog);
         }
 
+        // Run the test once for each view
         GLuint views[] = { unormView, snormView };
         const char* viewNames[] = { "GL_R8 (= GL_R8_UNORM)", "GL_R8_SNORM" };
+
         for (int viewIdx = 0; viewIdx < sizeof(views) / sizeof(*views); viewIdx++)
         {
             GLuint view = views[viewIdx];
             const char* viewName = viewNames[viewIdx];
 
+            // Bind shader resources
             glBindTextures(0, 1, &view);
             glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, &resultsBuf);
 
+            // Run the test
             glUseProgram(program);
             glDispatchCompute(1, 1, 1);
             glUseProgram(0);
 
+            // Unbind shader resources
             glBindTextures(0, 1, NULL);
             glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, NULL);
 
+            // Make sure all writes to the buffer are done before reading them.
             glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
+            // Map the buffer to be able to read its data.
             glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
             GLfloat* results = (GLfloat*)glMapBufferRange(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * 256, GL_MAP_READ_BIT);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+            // Output the table of values
             printf("%s:\n", viewName);
             int nCols = 4;
             int nRows = 256 / nCols;
@@ -269,6 +288,7 @@ void main()
             }
             printf("\n");
 
+            // Unmap the buffer
             glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
             glUnmapBuffer(GL_ARRAY_BUFFER);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
