@@ -2,11 +2,12 @@
 
 Example of UNORM (GL_RGBA8) vs SNORM (GL_RGBA8_SNORM) vs SRGB (GL_SRGB8_ALPHA8) textures in GL.
 
-Contains:
+In this example program, [main.cpp](main.cpp) contains:
 
-* Example of UNORM and SNORM and SRGB8_ALPHA8 textures in OpenGL.
-* Example of using glTextureView to switch between them.
-* Sample outputs (in this README.)
+* An example of using UNORM and SNORM and SRGB textures in OpenGL.
+* An example of using glTextureView to switch between them.
+
+There is also sample output in this README.
 
 # Sample Output
 
@@ -15,8 +16,6 @@ This shows the result of converting an 8-bit value to a float value by either re
 Each entry in the result shows the original 8-bit value and the float that it was converted to.
 
 In the SNORM table, the signed value is also shown for 8-bit values that represent negative numbers in twos complement.
-
-Results were produced on an Intel HD 540 GPU running Windows 10.
 
 ```
 GL_VENDOR: Intel
