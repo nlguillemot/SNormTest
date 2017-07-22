@@ -11,7 +11,7 @@ There is also sample output in this README.
 
 # Sample Output
 
-This shows the result of converting an 8-bit value to a float value by either reading from a GL_R8 (aka GL_RGBA8_UNORM) texture or from a GL_RGBA8_SNORM texture or from a GL_SRGB8_ALPHA8 texture.
+This shows the result of converting an 8-bit value to a float value by either reading from a GL_RGBA8 (aka GL_RGBA8_UNORM) texture or from a GL_RGBA8_SNORM texture or from a GL_SRGB8_ALPHA8 texture.
 
 Each entry in the result shows the original 8-bit value and the float that it was converted to.
 
