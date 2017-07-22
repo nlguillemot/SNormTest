@@ -220,3 +220,10 @@ GL_SRGB8_ALPHA8:
 |  62 -> 0.048 | 126 -> 0.208 | 190 -> 0.515 | 254 -> 0.991 |
 |  63 -> 0.049 | 127 -> 0.212 | 191 -> 0.521 | 255 -> 1.000 |
 ```
+# Sample Output (Plotted in Excel)
+
+<img src="http://i.imgur.com/Uc4n9OO.png" width="600">
+
+<img src="http://i.imgur.com/d9hBhI5.pngg" width="600">
+
+<img src="http://i.imgur.com/3uWCygl.png" width="600">
