@@ -2,11 +2,12 @@
 
 Example of UNORM (GL_R8) vs SNORM (GL_R8_SNORM) textures in GL.
 
-Contains:
+In this example program, [main.cpp](main.cpp) contains:
 
-* Example of UNORM and SNORM textures in OpenGL.
-* Example of using glTextureView to switch between them.
-* Sample outputs (in this README.)
+* An example of using UNORM and SNORM textures in OpenGL.
+* An example of using glTextureView to switch between them.
+
+There is also sample output in this README.
 
 # Sample Output
 
