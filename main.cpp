@@ -11,9 +11,7 @@
 
 void APIENTRY DebugCallbackGL(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
 {
-    OutputDebugStringA("DebugCallbackGL: ");
-    OutputDebugStringA(message);
-    OutputDebugStringA("\n");
+    fprintf(stderr, "DebugCallbackGL: %s\n", message);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -30,18 +28,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 int main()
 {
     // Register window class
-    WNDCLASSEX wc = {};
-    wc.cbSize = sizeof(wc);
+    WNDCLASS wc = {};
     wc.style = CS_OWNDC;
     wc.lpfnWndProc = WndProc;
-    wc.hInstance = GetModuleHandleW(NULL);
-    wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
+    wc.hInstance = GetModuleHandle(NULL);
     wc.lpszClassName = TEXT("WindowClass");
-    BOOL ok = RegisterClassExW(&wc) != NULL;
+    bool ok = RegisterClass(&wc) != NULL;
     assert(ok);
 
     // Create window that will be used to create a GL context
-    HWND gl_hWnd = CreateWindowEx(0, TEXT("WindowClass"), 0, 0, 0, 0, 0, 0, 0, 0, GetModuleHandle(NULL), 0);
+    HWND gl_hWnd = CreateWindow(TEXT("WindowClass"), 0, 0, 0, 0, 0, 0, 0, 0, GetModuleHandle(NULL), 0);
     assert(gl_hWnd != NULL);
 
     HDC gl_hDC = GetDC(gl_hWnd);
@@ -80,6 +76,7 @@ int main()
         0
     };
 
+    // Create better GL context
     HGLRC hGLRC = wglCreateContextAttribsARB(gl_hDC, NULL, contextAttribsGL);
     assert(hGLRC != NULL);
 
@@ -89,13 +86,12 @@ int main()
     ok = wglDeleteContext(dummy_hGLRC) != FALSE;
     assert(ok);
 
-    HMODULE hOpenGL32 = LoadLibrary(TEXT("OpenGL32.dll"));
-
-    auto GetProcGL = [&](const char* name) {
+    auto GetProcGL = [](const char* name) {
         void* proc = wglGetProcAddress(name);
         if (!proc)
         {
             // Fall back to GetProcAddress to get GL 1 functions. wglGetProcAddress returns NULL on those.
+            static HMODULE hOpenGL32 = LoadLibrary(TEXT("OpenGL32.dll"));
             proc = GetProcAddress(hOpenGL32, name);
         }
         return proc;
