@@ -1,45 +1,13 @@
 #include <Windows.h>
-#include <comdef.h>
 
 #include "glcorearb.h"
 #include "wglext.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <cassert>
 
 #pragma comment(lib, "opengl32.lib")
-
-bool CheckHR(HRESULT hr)
-{
-    if (SUCCEEDED(hr))
-    {
-        return true;
-    }
-
-    _com_error err(hr);
-
-    int result = MessageBoxW(NULL, err.ErrorMessage(), L"Error", MB_ABORTRETRYIGNORE);
-    if (result == IDABORT)
-    {
-        ExitProcess(-1);
-    }
-    else if (result == IDRETRY)
-    {
-        DebugBreak();
-    }
-
-    return false;
-}
-
-bool CheckWin32(BOOL okay)
-{
-    if (okay)
-    {
-        return true;
-    }
-
-    return CheckHR(HRESULT_FROM_WIN32(GetLastError()));
-}
 
 void APIENTRY DebugCallbackGL(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
 {
@@ -69,14 +37,15 @@ int main()
     wc.hInstance = GetModuleHandleW(NULL);
     wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
     wc.lpszClassName = TEXT("WindowClass");
-    CheckWin32(RegisterClassExW(&wc) != NULL);
+    BOOL ok = RegisterClassExW(&wc) != NULL;
+    assert(ok);
 
     // Create window that will be used to create a GL context
     HWND gl_hWnd = CreateWindowEx(0, TEXT("WindowClass"), 0, 0, 0, 0, 0, 0, 0, 0, GetModuleHandle(NULL), 0);
-    CheckWin32(gl_hWnd != NULL);
+    assert(gl_hWnd != NULL);
 
     HDC gl_hDC = GetDC(gl_hWnd);
-    CheckWin32(gl_hDC != NULL);
+    assert(gl_hDC != NULL);
 
     // set pixelformat for window that supports OpenGL
     PIXELFORMATDESCRIPTOR gl_pfd = {};
@@ -85,14 +54,16 @@ int main()
     gl_pfd.dwFlags = PFD_SUPPORT_OPENGL;
 
     int chosenPixelFormat = ChoosePixelFormat(gl_hDC, &gl_pfd);
-    CheckWin32(SetPixelFormat(gl_hDC, chosenPixelFormat, &gl_pfd) != FALSE);
+    ok = SetPixelFormat(gl_hDC, chosenPixelFormat, &gl_pfd) != FALSE;
+    assert(ok);
 
     // Create dummy GL context that will be used to create the real context
     HGLRC dummy_hGLRC = wglCreateContext(gl_hDC);
-    CheckWin32(dummy_hGLRC != NULL);
+    assert(dummy_hGLRC != NULL);
 
     // Use the dummy context to get function to create a better context
-    CheckWin32(wglMakeCurrent(gl_hDC, dummy_hGLRC) != FALSE);
+    ok = wglMakeCurrent(gl_hDC, dummy_hGLRC) != FALSE;
+    assert(ok);
 
     PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
 
@@ -110,11 +81,13 @@ int main()
     };
 
     HGLRC hGLRC = wglCreateContextAttribsARB(gl_hDC, NULL, contextAttribsGL);
-    CheckWin32(hGLRC != NULL);
+    assert(hGLRC != NULL);
 
     // Switch to the new context and ditch the old one
-    CheckWin32(wglMakeCurrent(gl_hDC, hGLRC) != FALSE);
-    CheckWin32(wglDeleteContext(dummy_hGLRC) != FALSE);
+    ok = wglMakeCurrent(gl_hDC, hGLRC) != FALSE;
+    assert(ok);
+    ok = wglDeleteContext(dummy_hGLRC) != FALSE;
+    assert(ok);
 
     HMODULE hOpenGL32 = LoadLibrary(TEXT("OpenGL32.dll"));
 
@@ -167,140 +140,136 @@ int main()
     printf("GL_VERSION: %s\n", glGetString(GL_VERSION));
     printf("\n");
 
-    // Test contents
+    unsigned char all8bitpixels[256 * 4];
+    for (int i = 0; i < 256; i++)
     {
-        unsigned char all8bitpixels[256 * 4];
-        for (int i = 0; i < 256; i++)
-        {
-            all8bitpixels[i * 4 + 0] = i;
-            all8bitpixels[i * 4 + 1] = i;
-            all8bitpixels[i * 4 + 2] = i;
-            all8bitpixels[i * 4 + 3] = i;
-        }
+        all8bitpixels[i * 4 + 0] = i;
+        all8bitpixels[i * 4 + 1] = i;
+        all8bitpixels[i * 4 + 2] = i;
+        all8bitpixels[i * 4 + 3] = i;
+    }
 
-        // Initialize the texture with raw 8-bit data in it.
-        GLuint texture;
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_1D, texture);
-        glTexStorage1D(GL_TEXTURE_1D, 1, GL_RGBA8UI, 256);
-        glTexSubImage1D(GL_TEXTURE_1D, 0, 0, 256, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, all8bitpixels);
-        glBindTexture(GL_TEXTURE_1D, 0);
+    // Initialize the texture with raw 8-bit data in it.
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_1D, texture);
+    glTexStorage1D(GL_TEXTURE_1D, 1, GL_RGBA8UI, 256);
+    glTexSubImage1D(GL_TEXTURE_1D, 0, 0, 256, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, all8bitpixels);
+    glBindTexture(GL_TEXTURE_1D, 0);
 
-        // Create a UNORM view of the 8-bit data
-        GLuint unormView;
-        glGenTextures(1, &unormView);
-        glTextureView(unormView, GL_TEXTURE_1D, texture, GL_RGBA8, 0, 1, 0, 1);
+    // Create a UNORM view of the 8-bit data
+    GLuint unormView;
+    glGenTextures(1, &unormView);
+    glTextureView(unormView, GL_TEXTURE_1D, texture, GL_RGBA8, 0, 1, 0, 1);
 
-        // Create a SNORM view of the 8-bit data
-        GLuint snormView;
-        glGenTextures(1, &snormView);
-        glTextureView(snormView, GL_TEXTURE_1D, texture, GL_RGBA8_SNORM, 0, 1, 0, 1);
+    // Create a SNORM view of the 8-bit data
+    GLuint snormView;
+    glGenTextures(1, &snormView);
+    glTextureView(snormView, GL_TEXTURE_1D, texture, GL_RGBA8_SNORM, 0, 1, 0, 1);
 
-        // Create a SRGB view of the 8-bit data
-        GLuint srgbView;
-        glGenTextures(1, &srgbView);
-        glTextureView(srgbView, GL_TEXTURE_1D, texture, GL_SRGB8_ALPHA8, 0, 1, 0, 1);
+    // Create a SRGB view of the 8-bit data
+    GLuint srgbView;
+    glGenTextures(1, &srgbView);
+    glTextureView(srgbView, GL_TEXTURE_1D, texture, GL_SRGB8_ALPHA8, 0, 1, 0, 1);
 
-        // Create a buffer to store the results of the test
-        GLuint resultsBuf;
-        glGenBuffers(1, &resultsBuf);
-        glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
-        glBufferStorage(GL_ARRAY_BUFFER, sizeof(GLfloat) * 256, NULL, GL_MAP_READ_BIT);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // Create a buffer to store the results of the test
+    GLuint resultsBuf;
+    glGenBuffers(1, &resultsBuf);
+    glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
+    glBufferStorage(GL_ARRAY_BUFFER, sizeof(GLfloat) * 256, NULL, GL_MAP_READ_BIT);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        // Compute shader that just converts every 8-bit value into a float and stores the result in a buffer.
-        const char* srcs[] = {
+    // Compute shader that just converts every 8-bit value into a float and stores the result in a buffer.
+    const char* srcs[] = {
 R"GLSL(
 #version 440 core
 
-layout(local_size_x = 1) in;
-
 layout(binding = 0)
-uniform sampler1D all8BitValues;
+uniform sampler1D all8bitpixels;
 
 layout(std430, binding = 0)
 buffer ResultsBuffer { float Results[]; };
 
+layout(local_size_x = 1) in;
 void main()
 {
     for (int i = 0; i < 256; i++)
     {
-        Results[i] = texelFetch(all8BitValues, i, 0).x;
+        Results[i] = texelFetch(all8bitpixels, i, 0).r;
     }
 }
 )GLSL"
-        };
+    };
 
-        GLuint program = glCreateShaderProgramv(GL_COMPUTE_SHADER, sizeof(srcs) / sizeof(*srcs), srcs);
-        GLint logLength;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 0)
+    GLuint program = glCreateShaderProgramv(GL_COMPUTE_SHADER, sizeof(srcs) / sizeof(*srcs), srcs);
+    GLint logLength;
+    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+    if (logLength > 0)
+    {
+        GLchar* infolog = (GLchar*)malloc(logLength);
+        glGetProgramInfoLog(program, logLength, NULL, infolog);
+        fprintf(stderr, "%s", infolog);
+        free(infolog);
+    }
+
+    // Run the test once for each view
+    GLuint views[] = { unormView, snormView, srgbView };
+    const char* viewNames[] = { "GL_RGBA8 (= GL_RGBA8_UNORM)", "GL_RGBA8_SNORM", "GL_SRGB8_ALPHA8" };
+
+    for (int viewIdx = 0; viewIdx < sizeof(views) / sizeof(*views); viewIdx++)
+    {
+        GLuint view = views[viewIdx];
+        const char* viewName = viewNames[viewIdx];
+
+        // Bind shader resources
+        glBindTextures(0, 1, &view);
+        glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, &resultsBuf);
+
+        // Run the test
+        glUseProgram(program);
+        glDispatchCompute(1, 1, 1);
+        glUseProgram(0);
+
+        // Unbind shader resources
+        glBindTextures(0, 1, NULL);
+        glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, NULL);
+
+        // Make sure all writes to the buffer are done before reading them.
+        glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+        // Map the buffer to be able to read its data.
+        glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
+        GLfloat* results = (GLfloat*)glMapBufferRange(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * 256, GL_MAP_READ_BIT);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        // Output the table of values
+        printf("%s:\n", viewName);
+        int nCols = 4;
+        int nRows = 256 / nCols;
+        assert(nCols * nRows == 256);
+        for (int row = 0; row < nRows; row++)
         {
-            GLchar* infolog = (GLchar*)malloc(logLength);
-            glGetProgramInfoLog(program, logLength, NULL, infolog);
-            fprintf(stderr, "%s", infolog);
-            free(infolog);
-        }
-
-        // Run the test once for each view
-        GLuint views[] = { unormView, snormView, srgbView };
-        const char* viewNames[] = { "GL_RGBA8 (= GL_RGBA8_UNORM)", "GL_RGBA8_SNORM", "GL_SRGB8_ALPHA8" };
-
-        for (int viewIdx = 0; viewIdx < sizeof(views) / sizeof(*views); viewIdx++)
-        {
-            GLuint view = views[viewIdx];
-            const char* viewName = viewNames[viewIdx];
-
-            // Bind shader resources
-            glBindTextures(0, 1, &view);
-            glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, &resultsBuf);
-
-            // Run the test
-            glUseProgram(program);
-            glDispatchCompute(1, 1, 1);
-            glUseProgram(0);
-
-            // Unbind shader resources
-            glBindTextures(0, 1, NULL);
-            glBindBuffersBase(GL_SHADER_STORAGE_BUFFER, 0, 1, NULL);
-
-            // Make sure all writes to the buffer are done before reading them.
-            glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
-            // Map the buffer to be able to read its data.
-            glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
-            GLfloat* results = (GLfloat*)glMapBufferRange(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * 256, GL_MAP_READ_BIT);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-            // Output the table of values
-            printf("%s:\n", viewName);
-            int nCols = 4;
-            int nRows = 256 / nCols;
-            assert(nCols * nRows == 256);
-            for (int row = 0; row < nRows; row++)
+            printf("| ");
+            for (int col = 0; col < nCols; col++)
             {
-                printf("| ");
-                for (int col = 0; col < nCols; col++)
-                {
-                    int i = row + col * nRows;
+                int i = row + col * nRows;
 
-                    if (view == unormView || view == srgbView || (view == snormView && i <= 127))
-                    {
-                        printf("%3d -> %2.3f | ", i, results[i]);
-                    }
-                    else
-                    {
-                        printf("%3d (%4d) -> %2.3f | ", i, (signed char)i, results[i]);
-                    }
+                if (view == unormView || view == srgbView || (view == snormView && i <= 127))
+                {
+                    printf("%3d -> %2.3f | ", i, results[i]);
                 }
-                printf("\n");
+                else
+                {
+                    printf("%3d (%4d) -> %2.3f | ", i, (signed char)i, results[i]);
+                }
             }
             printf("\n");
-
-            // Unmap the buffer
-            glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
-            glUnmapBuffer(GL_ARRAY_BUFFER);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
         }
+        printf("\n");
+
+        // Unmap the buffer
+        glBindBuffer(GL_ARRAY_BUFFER, resultsBuf);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 }
