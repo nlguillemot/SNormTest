@@ -239,6 +239,7 @@ void main()
             GLchar* infolog = (GLchar*)malloc(logLength);
             glGetProgramInfoLog(program, logLength, NULL, infolog);
             fprintf(stderr, "%s", infolog);
+            free(infolog);
         }
 
         // Run the test once for each view
