@@ -1,133 +1,48 @@
-#include <Windows.h>
-
-#include "glcorearb.h"
-#include "wglext.h"
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
-
-#pragma comment(lib, "opengl32.lib")
 
 void APIENTRY DebugCallbackGL(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
 {
     fprintf(stderr, "DebugCallbackGL: %s\n", message);
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    switch (msg)
-    {
-    case WM_CLOSE:
-        ExitProcess(0);
-    }
-
-    return DefWindowProc(hWnd, msg, wParam, lParam);
-}
-
 int main()
 {
-    // Register window class
-    WNDCLASS wc = {};
-    wc.style = CS_OWNDC;
-    wc.lpfnWndProc = WndProc;
-    wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = TEXT("WindowClass");
-    bool ok = RegisterClass(&wc) != NULL;
-    assert(ok);
 
-    // Create window that will be used to create a GL context
-    HWND gl_hWnd = CreateWindow(TEXT("WindowClass"), 0, 0, 0, 0, 0, 0, 0, 0, GetModuleHandle(NULL), 0);
-    assert(gl_hWnd != NULL);
+    if (!glfwInit())
+    {
+        fprintf(stderr, "Error: GLFW initialization failed\n");
+    }
 
-    HDC gl_hDC = GetDC(gl_hWnd);
-    assert(gl_hDC != NULL);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // set pixelformat for window that supports OpenGL
-    PIXELFORMATDESCRIPTOR gl_pfd = {};
-    gl_pfd.nSize = sizeof(gl_pfd);
-    gl_pfd.nVersion = 1;
-    gl_pfd.dwFlags = PFD_SUPPORT_OPENGL;
+    GLFWwindow* window = glfwCreateWindow(640, 480, "My Title", NULL, NULL);
+    if (!window)
+    {
+        fprintf(stderr, "Error: Window or context creation failed\n");
+    }
 
-    int chosenPixelFormat = ChoosePixelFormat(gl_hDC, &gl_pfd);
-    ok = SetPixelFormat(gl_hDC, chosenPixelFormat, &gl_pfd) != FALSE;
-    assert(ok);
+    glfwMakeContextCurrent(window);
 
-    // Create dummy GL context that will be used to create the real context
-    HGLRC dummy_hGLRC = wglCreateContext(gl_hDC);
-    assert(dummy_hGLRC != NULL);
+    GLenum err = glewInit();
+    if (GLEW_OK != err)
+    {
+        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+    }
+    fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    // Use the dummy context to get function to create a better context
-    ok = wglMakeCurrent(gl_hDC, dummy_hGLRC) != FALSE;
-    assert(ok);
-
-    PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
-
-    int contextFlagsGL = 0;
-#ifdef _DEBUG
-    contextFlagsGL |= WGL_CONTEXT_DEBUG_BIT_ARB;
-#endif
-
-    int contextAttribsGL[] = {
-        WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
-        WGL_CONTEXT_MINOR_VERSION_ARB, 4,
-        WGL_CONTEXT_FLAGS_ARB, contextFlagsGL,
-        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-        0
-    };
-
-    // Create better GL context
-    HGLRC hGLRC = wglCreateContextAttribsARB(gl_hDC, NULL, contextAttribsGL);
-    assert(hGLRC != NULL);
-
-    // Switch to the new context and ditch the old one
-    ok = wglMakeCurrent(gl_hDC, hGLRC) != FALSE;
-    assert(ok);
-    ok = wglDeleteContext(dummy_hGLRC) != FALSE;
-    assert(ok);
-
-    auto GetProcGL = [](const char* name) {
-        void* proc = wglGetProcAddress(name);
-        if (!proc)
-        {
-            // Fall back to GetProcAddress to get GL 1 functions. wglGetProcAddress returns NULL on those.
-            static HMODULE hOpenGL32 = LoadLibrary(TEXT("OpenGL32.dll"));
-            proc = GetProcAddress(hOpenGL32, name);
-        }
-        return proc;
-    };
-
-    // Grab OpenGL functions
-    PFNGLGETSTRINGPROC glGetString = (PFNGLGETSTRINGPROC)GetProcGL("glGetString");
-    PFNGLENABLEPROC glEnable = (PFNGLENABLEPROC)GetProcGL("glEnable");
-
-    PFNGLGENBUFFERSPROC glGenBuffers = (PFNGLGENBUFFERSPROC)GetProcGL("glGenBuffers");
-    PFNGLBINDBUFFERPROC glBindBuffer = (PFNGLBINDBUFFERPROC)GetProcGL("glBindBuffer");
-    PFNGLBINDBUFFERSBASEPROC glBindBuffersBase = (PFNGLBINDBUFFERSBASEPROC)GetProcGL("glBindBuffersBase");
-    PFNGLBUFFERSTORAGEPROC glBufferStorage = (PFNGLBUFFERSTORAGEPROC)GetProcGL("glBufferStorage");
-    PFNGLMAPBUFFERRANGEPROC glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC)GetProcGL("glMapBufferRange");
-    PFNGLUNMAPBUFFERPROC glUnmapBuffer = (PFNGLUNMAPBUFFERPROC)GetProcGL("glUnmapBuffer");
-    
-    PFNGLGENTEXTURESPROC glGenTextures = (PFNGLGENTEXTURESPROC)GetProcGL("glGenTextures");
-    PFNGLBINDTEXTUREPROC glBindTexture = (PFNGLBINDTEXTUREPROC)GetProcGL("glBindTexture");
-    PFNGLBINDTEXTURESPROC glBindTextures = (PFNGLBINDTEXTURESPROC)GetProcGL("glBindTextures");
-    PFNGLTEXSTORAGE1DPROC glTexStorage1D = (PFNGLTEXSTORAGE1DPROC)GetProcGL("glTexStorage1D");
-    PFNGLTEXSUBIMAGE1DPROC glTexSubImage1D = (PFNGLTEXSUBIMAGE1DPROC)GetProcGL("glTexSubImage1D");
-    PFNGLTEXTUREVIEWPROC glTextureView = (PFNGLTEXTUREVIEWPROC)GetProcGL("glTextureView");
-
-    PFNGLCREATESHADERPROGRAMVPROC glCreateShaderProgramv = (PFNGLCREATESHADERPROGRAMVPROC)GetProcGL("glCreateShaderProgramv");
-    PFNGLGETPROGRAMIVPROC glGetProgramiv = (PFNGLGETPROGRAMIVPROC)GetProcGL("glGetProgramiv");
-    PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)GetProcGL("glGetProgramInfoLog");
-    PFNGLUSEPROGRAMPROC glUseProgram = (PFNGLUSEPROGRAMPROC)GetProcGL("glUseProgram");
-
-    PFNGLDISPATCHCOMPUTEPROC glDispatchCompute = (PFNGLDISPATCHCOMPUTEPROC)GetProcGL("glDispatchCompute");
-    PFNGLMEMORYBARRIERPROC glMemoryBarrier = (PFNGLMEMORYBARRIERPROC)GetProcGL("glMemoryBarrier");
 
     // Enable OpenGL debugging
 #ifdef _DEBUG
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glEnable(GL_DEBUG_OUTPUT);
-    PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback = (PFNGLDEBUGMESSAGECALLBACKPROC)wglGetProcAddress("glDebugMessageCallback");
     glDebugMessageCallback(DebugCallbackGL, 0);
 #endif
 
@@ -178,7 +93,10 @@ int main()
     // Compute shader that just converts every 8-bit value into a float and stores the result in a buffer.
     const char* srcs[] = {
 R"GLSL(
-#version 440 core
+#version 420 core
+
+#extension GL_ARB_compute_shader : require
+#extension GL_ARB_shader_storage_buffer_object : require
 
 layout(binding = 0)
 uniform sampler1D all8bitpixels;
